@@ -1,16 +1,20 @@
 org: leonardogst
 service: api-comentario
 
+custom:
+  # Nombre único por service+stage+account
+  ingestBucketName: ${self:service}-${sls:stage}-ingesta-${aws:accountId}
+
 provider:
   name: aws
-  runtime: python3.13	
-  # Default memory size for functions (default: 1024MB)
+  runtime: python3.13
   memorySize: 1024
   timeout: 20
   iam:
-    role: arn:aws:iam::218146371823:role/LabRole	
+    role: arn:aws:iam::218146371823:role/LabRole
   environment:
     TABLE_NAME: ${sls:stage}-t_comentarios
+    INGEST_BUCKET: ${self:custom.ingestBucketName}
 
 functions:
   crear:
@@ -38,5 +42,19 @@ resources:
             KeyType: HASH
           - AttributeName: uuid
             KeyType: RANGE
-        # Set the capacity to auto-scale
         BillingMode: PAY_PER_REQUEST
+
+    IngestBucket:
+      Type: AWS::S3::Bucket
+      Properties:
+        BucketName: ${self:custom.ingestBucketName}
+        BlockPublicAccess:
+          BlockPublicAcls: true
+          BlockPublicPolicy: true
+          IgnorePublicAcls: true
+          RestrictPublicBuckets: true
+        BucketEncryption:
+          ServerSideEncryptionConfiguration:
+            - ServerSideEncryptionByDefault:
+                SSEAlgorithm: AES256
+      DeletionPolicy: Retain
